@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wireguard
+  labels:
+    app: wireguard
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: wireguard
+  template:
+    metadata:
+      labels:
+        app: wireguard
+    spec:
+      initContainers:
+      - name: init-sysctl
+        image: busybox
+        imagePullPolicy: IfNotPresent
+        command: ["sysctl", "-w", "net.ipv4.ip_forward=1"]
+        securityContext:
+          privileged: true
+      containers:
+      - name: wireguard
+        image: lscr.io/linuxserver/wireguard
+        env:
+        - name: TZ
+          value: America/Central
+        - name: PUID
+          value: "1000"
+        - name: PGID
+          value: "1000"
+        - name: SERVERURL
+          value: "wireguard.example.com" # change this
+        - name: SERVERPORT
+          value: "31820"
+        - name: PEERS
+          value: "1"
+        - name: PEERSDNS
+          value: auto
+        - name: INTERNAL_SUBNET
+          value: 10.13.13.0
+        - name: ALLOWEDIPS
+          value: 0.0.0.0/0
+        ports:
+        - containerPort: 51820
+          hostPort: 51820
+          protocol: UDP
+        securityContext:
+          capabilities:
+            add: ["NET_ADMIN", "SYS_MODULE"]
+        volumeMounts:
+        - name: wireguard-config
+          mountPath: /config
+        - name: wireguard-modules
+          mountPath: /lib/modules
+      restartPolicy: Always
+      volumes:
+      - name: wireguard-config
+        persistentVolumeClaim:
+          claimName: wireguard-config
+      - name: wireguard-modules
+        persistentVolumeClaim:
+          claimName: wireguard-modules
